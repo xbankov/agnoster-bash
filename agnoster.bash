@@ -214,6 +214,14 @@ prompt_virtualenv() {
     fi
 }
 
+### virtualenv prompt
+prompt_virtualenv() {
+    if [[ -n $CONDA_DEFAULT_ENV ]]; then
+        color=cyan
+        prompt_segment $color $PRIMARY_FG
+        prompt_segment $color white "$(basename $CONDA_DEFAULT_ENV)"
+    fi
+}
 
 ### Prompt components
 # Each component will draw itself, and hide itself if no information needs to be shown
@@ -239,63 +247,19 @@ git_status_dirty() {
     [[ -n $dirty ]] && echo " ●"
 }
 
-git_stash_dirty() {
-    stash=$(git stash list 2> /dev/null | tail -n 1)
-    [[ -n $stash ]] && echo " ⚑"
-}
-
 # Git: branch/detached head, dirty status
 prompt_git() {
     local ref dirty
     if $(git rev-parse --is-inside-work-tree >/dev/null 2>&1); then
         ZSH_THEME_GIT_PROMPT_DIRTY='±'
         dirty=$(git_status_dirty)
-        stash=$(git_stash_dirty)
-        ref=$(git symbolic-ref HEAD 2> /dev/null) \
-            || ref="➦ $(git describe --exact-match --tags HEAD 2> /dev/null)" \
-            || ref="➦ $(git show-ref --head -s --abbrev | head -n1 2> /dev/null)"
+        ref=$(git symbolic-ref HEAD 2> /dev/null) || ref="➦ $(git show-ref --head -s --abbrev |head -n1 2> /dev/null)"
         if [[ -n $dirty ]]; then
             prompt_segment yellow black
         else
             prompt_segment green black
         fi
-        PR="$PR${ref/refs\/heads\// }$stash$dirty"
-    fi
-}
-
-# Mercurial: clean, modified and uncomitted files
-prompt_hg() {
-    local rev st branch
-    if $(hg id >/dev/null 2>&1); then
-        if $(hg prompt >/dev/null 2>&1); then
-            if [[ $(hg prompt "{status|unknown}") = "?" ]]; then
-                # if files are not added
-                prompt_segment red white
-                st='±'
-            elif [[ -n $(hg prompt "{status|modified}") ]]; then
-                # if any modification
-                prompt_segment yellow black
-                st='±'
-            else
-                # if working copy is clean
-                prompt_segment green black $CURRENT_FG
-            fi
-            PR="$PR$(hg prompt "☿ {rev}@{branch}") $st"
-        else
-            st=""
-            rev=$(hg id -n 2>/dev/null | sed 's/[^-0-9]//g')
-            branch=$(hg id -b 2>/dev/null)
-            if `hg st | grep -q "^\?"`; then
-                prompt_segment red white
-                st='±'
-            elif `hg st | grep -q "^[MA]"`; then
-                prompt_segment yellow black
-                st='±'
-            else
-                prompt_segment green black $CURRENT_FG
-            fi
-            PR="$PR☿ $rev@$branch $st"
-        fi
+        PR="$PR${ref/refs\/heads\// }$dirty"
     fi
 }
 
@@ -443,7 +407,6 @@ build_prompt() {
     prompt_virtualenv
     prompt_dir
     prompt_git
-    prompt_hg
     prompt_end
 }
 
